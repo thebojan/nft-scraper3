@@ -7,7 +7,6 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3001;
 
-// 🕒 Cache setup
 let lastScrapeTime = 0;
 let cachedNFTs = [];
 
@@ -27,17 +26,15 @@ app.get('/nfts', async (req, res) => {
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-        '--no-zygote',
-        '--disable-features=site-per-process'
+        '--disable-dev-shm-usage',
+        '--no-zygote'
       ],
-      timeout: 60000 // ⏱️ Increase launch timeout
+      timeout: 60000
     });
 
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(0); // ⏱️ Avoid navigation timeout
+    await page.setDefaultNavigationTimeout(0);
     await page.goto('https://superrare.com/bojan_archnd', {
       waitUntil: 'networkidle2',
       timeout: 0
@@ -55,7 +52,6 @@ app.get('/nfts', async (req, res) => {
     });
 
     await browser.close();
-
     cachedNFTs = nfts;
     lastScrapeTime = Date.now();
 
@@ -67,6 +63,7 @@ app.get('/nfts', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ NFT scraper running at http://localhost:${PORT}/nfts`);
 });
+
