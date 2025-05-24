@@ -7,43 +7,43 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3001;
 
-let isScraping = false;
+// 🕒 Cache setup
 let lastScrapeTime = 0;
-let cache = [];
+let cachedNFTs = [];
 
 app.get('/nfts', async (req, res) => {
   const now = Date.now();
   const fifteenMinutes = 15 * 60 * 1000;
 
-  // Return cache if scraper ran within 15 minutes
-  if (now - lastScrapeTime < fifteenMinutes && cache.length > 0) {
+  if (now - lastScrapeTime < fifteenMinutes && cachedNFTs.length > 0) {
     console.log('⚡ Serving cached NFTs');
-    return res.json(cache);
-  }
-
-  if (isScraping) {
-    console.log('⚠️ Scraper already running');
-    return res.status(429).json({ error: 'Scraper in progress. Try again later.' });
+    return res.json(cachedNFTs);
   }
 
   let browser;
-  isScraping = true;
-
   try {
-    console.log('🚀 Launching Puppeteer...');
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--no-zygote',
+        '--disable-features=site-per-process'
+      ],
+      timeout: 60000 // ⏱️ Increase launch timeout
     });
 
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(0); // ⏱️ Avoid navigation timeout
     await page.goto('https://superrare.com/bojan_archnd', {
       waitUntil: 'networkidle2',
       timeout: 0
     });
 
-    console.log('⏳ Waiting for NFT images...');
-    await page.waitForSelector('img.object-contain', { timeout: 40000 });
+    await page.waitForSelector('img.object-contain', { timeout: 45000 });
 
     const nfts = await page.evaluate(() => {
       const images = Array.from(document.querySelectorAll('img.object-contain'));
@@ -54,18 +54,16 @@ app.get('/nfts', async (req, res) => {
       });
     });
 
-    console.log(`✅ Scraped ${nfts.length} NFTs`);
-    cache = nfts;
+    await browser.close();
+
+    cachedNFTs = nfts;
     lastScrapeTime = Date.now();
 
-    await browser.close();
-    isScraping = false;
-    return res.json(nfts);
+    res.json(nfts);
   } catch (err) {
     console.error('❌ Scraper Error:', err.message);
     if (browser) await browser.close();
-    isScraping = false;
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
