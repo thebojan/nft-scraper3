@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live NFT Gallery</title>
+  <style>
+    body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+    }
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    .nft {
+      max-width: 300px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .nft img {
+      width: 100%;
+      border-radius: 12px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+    .nft img:hover {
+      transform: scale(1.03);
+    }
+  </style>
+</head>
+<body>
+  <div class="gallery" id="nft-gallery">Loading NFTs...</div>
+
+  <script>
+    async function loadNFTs() {
+      try {
+        const res = await fetch('https://nft-scraper2.onrender.com/nfts');
+        const data = await res.json();
+        const container = document.getElementById('nft-gallery');
+
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = '<p style="color:white;">No NFTs found.</p>';
+          return;
+        }
+
+        container.innerHTML = data.map(nft => `
+          <div class="nft">
+            <a href="${nft.link}" target="_blank" rel="noopener noreferrer">
+              <img src="${nft.image}" alt="NFT" loading="lazy" />
+            </a>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error("Couldn't load NFTs:", err);
+        document.getElementById('nft-gallery').innerHTML =
+          `<p style="color:red;">Error: ${err.message}</p>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNFTs();
+      setInterval(loadNFTs, 60000); // refresh every 60 seconds
+    });
+  </script>
+</body>
+</html>
