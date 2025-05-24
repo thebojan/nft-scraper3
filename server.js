@@ -5,10 +5,18 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(cors());
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
+let isScraping = false;
 
 app.get('/nfts', async (req, res) => {
+  if (isScraping) {
+    console.log('⚠️ Scraper already running, returning 429');
+    return res.status(429).json({ error: 'Scraper is already running. Try again shortly.' });
+  }
+
   let browser;
+  isScraping = true;
+
   try {
     console.log('🚀 Launching Puppeteer...');
     browser = await puppeteer.launch({
@@ -36,10 +44,12 @@ app.get('/nfts', async (req, res) => {
 
     console.log(`✅ Found ${nfts.length} NFTs`);
     await browser.close();
+    isScraping = false;
     res.json(nfts);
   } catch (err) {
     console.error('❌ Scraper Error:', err.message);
     if (browser) await browser.close();
+    isScraping = false;
     res.status(500).json({ error: err.message });
   }
 });
