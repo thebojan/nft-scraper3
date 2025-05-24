@@ -6,12 +6,24 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 3001;
+
 let isScraping = false;
+let lastScrapeTime = 0;
+let cache = [];
 
 app.get('/nfts', async (req, res) => {
+  const now = Date.now();
+  const fifteenMinutes = 15 * 60 * 1000;
+
+  // Return cache if scraper ran within 15 minutes
+  if (now - lastScrapeTime < fifteenMinutes && cache.length > 0) {
+    console.log('⚡ Serving cached NFTs');
+    return res.json(cache);
+  }
+
   if (isScraping) {
-    console.log('⚠️ Scraper already running, returning 429');
-    return res.status(429).json({ error: 'Scraper is already running. Try again shortly.' });
+    console.log('⚠️ Scraper already running');
+    return res.status(429).json({ error: 'Scraper in progress. Try again later.' });
   }
 
   let browser;
@@ -42,15 +54,18 @@ app.get('/nfts', async (req, res) => {
       });
     });
 
-    console.log(`✅ Found ${nfts.length} NFTs`);
+    console.log(`✅ Scraped ${nfts.length} NFTs`);
+    cache = nfts;
+    lastScrapeTime = Date.now();
+
     await browser.close();
     isScraping = false;
-    res.json(nfts);
+    return res.json(nfts);
   } catch (err) {
     console.error('❌ Scraper Error:', err.message);
     if (browser) await browser.close();
     isScraping = false;
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
